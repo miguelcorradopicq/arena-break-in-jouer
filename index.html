@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Arena Break-In</title>
+<style>
+  :root { --fond:#15170f; --carte:#23261d; --sable:#c9b98f; --papier:#e9e3d1; --signal:#e0702a; }
+  * { box-sizing:border-box; }
+  body { margin:0; min-height:100vh; display:grid; place-items:center; padding:16px; background:var(--fond); color:var(--papier); font-family:"Arial Narrow","Segoe UI",Arial,sans-serif; }
+  main { width:min(440px,100%); padding:28px 32px; background:var(--carte); border-top:4px solid var(--signal); }
+  h1 { margin:0 0 12px; font-size:2rem; line-height:1; letter-spacing:.02em; }
+  h1 em { color:var(--signal); font-style:normal; }
+  p { margin:0; color:var(--sable); font-size:1.05rem; line-height:1.35; }
+  small { display:block; margin-top:12px; color:#8d887a; font-size:.9rem; }
+</style>
+</head>
+<body>
+<main>
+  <h1>ARENA BREAK<em>-</em>IN</h1>
+  <p id="etat" role="status">Recherche de la partie…</p>
+  <small id="aide">À ouvrir dans Chrome ou Edge.</small>
+</main>
+<script>
+  const DEPOT = "miguelcorradopicq/arena-break-in-jouer";
+  const VALIDE = /^https:\/\/[a-z0-9-]+\.trycloudflare\.com$/;
+  const etat = document.getElementById("etat");
+  const aide = document.getElementById("aide");
+  let premier = true;
+
+  async function lire(url, options) {
+    try {
+      const r = await fetch(url, { cache: "no-store", ...options });
+      if (!r.ok) return null;
+      const adresse = (await r.json()).adresse;
+      return VALIDE.test(adresse) ? adresse : null;
+    } catch { return null; }
+  }
+
+  async function enLigne(adresse) {
+    try {
+      const r = await fetch(adresse + "/sante", { cache: "no-store" });
+      return r.ok;
+    } catch { return false; }
+  }
+
+  async function chercher() {
+    // Au premier essai, on lit la version la plus récente ; ensuite, la copie de la page (sans limite de lecture)
+    const candidates = [];
+    if (premier) candidates.push(await lire("https://api.github.com/repos/" + DEPOT + "/contents/adresse.json", { headers: { Accept: "application/vnd.github.raw+json" } }));
+    premier = false;
+    candidates.push(await lire("adresse.json?t=" + Date.now()));
+    for (const adresse of new Set(candidates.filter(Boolean))) {
+      if (await enLigne(adresse)) {
+        etat.textContent = "Partie trouvée, on y va…";
+        location.replace(adresse);
+        return;
+      }
+    }
+    etat.textContent = "La partie n'est pas lancée pour le moment.";
+    aide.textContent = "Garde cette page ouverte : elle te connecte toute seule dès que le serveur démarre.";
+    setTimeout(chercher, 5000);
+  }
+  chercher();
+</script>
+</body>
+</html>
